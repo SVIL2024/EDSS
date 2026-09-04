@@ -1,0 +1,78 @@
+# Python and local tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Training outputs and downloaded data
+model/
+logs/
+artifacts/
+features/
+data/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npz
+
+# Dataset manifests contain machine-local feature paths. Generate them locally.
+list/*.csv
+list/make_gt_*.py
+
+# Private workspace material and superseded experiment history
+.claude/
+AGENTS.md
+论文写作逻辑.md
+docs/archive/
+docs/research/
+docs/ARTIFACTS.md
+docs/EXPERIMENTS.md
+docs/protocols/
+configs/archive/
+scripts/archive/
+scripts/
+paper/references/
+paper/*.png
+
+# LaTeX and notebook build products
+paper/.ipynb_checkpoints/
+paper/main.aux
+paper/main.bbl
+paper/main.blg
+paper/main.fdb_latexmk
+paper/main.fls
+paper/main.log
+paper/main.pdf
+paper/main.spl
+*.log
+*.out
+*.synctex.gz
+
+# Draft material that is not part of the public release
+paper/论文写作技巧.txt
+
+# Local-only source and exploratory tests
+src/crop.py
+src/utils/calibration.py
+src/utils/dual_head.py
+src/utils/lr_warmup.py
+configs/*.sh
+!configs/edss_ucf.sh
+!configs/edss_xd.sh
+tests/test_*.py
+!tests/test_betting.py
+!tests/test_dual_branch.py
+!tests/test_ebh.py
+!tests/test_invariance.py
+!tests/test_mil_schedule.py
+!tests/test_null_alignment.py
+!tests/test_regularizers.py
+
+# Editor/OS files and local secrets
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+*.crt
