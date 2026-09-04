@@ -65,14 +65,10 @@ PY
 ## Data Preparation
 
 This project expects pre-extracted CLIP ViT-B/16 features and the dataset
-annotations. The supported benchmarks are:
+annotations. The dataset package for both supported benchmarks is available
+from Quark Drive:
 
-- UCF-Crime
-- XD-Violence
-
-### Dataset and feature package
-
-The dataset package for both benchmarks is available from Quark Drive:
+### Pre-extracted Features
 
 | Dataset | Feature backbone | Download | Extraction code |
 |---|---|---|---|
