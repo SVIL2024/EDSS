@@ -13,6 +13,8 @@ EDSS is a training-time method. At inference time, the released evaluation
 paths use the detector's ordinary snippet scores and expand each score over
 its 16-frame span; no selector or e-BH step is run.
 
+![EDSS method overview](paper/主框图.png)
+
 ## Repository contents
 
 ```text
@@ -42,6 +44,18 @@ python -m pip install -r requirements.txt
 The CLIP tokenizer vocabulary is included in `src/clip/`. The video datasets
 and CLIP snippet features must be obtained from their respective sources and
 remain outside this repository.
+
+## Datasets and checkpoints
+
+The dataset package is available from [Quark Drive](https://pan.quark.cn/s/b57edbb83bd4).
+Extraction code: `TwtL`.
+
+The pretrained checkpoint package is available from [Quark Drive](https://pan.quark.cn/s/e835d8220645).
+Extraction code: `JEbV`.
+
+Please comply with the original dataset, feature, and checkpoint licenses when
+downloading or redistributing these materials. The downloaded files should be
+kept outside this Git repository.
 
 ## Dataset manifests
 
