@@ -35,6 +35,7 @@ scripts/
 paper/references/
 paper/*.png
 !paper/主框图.png
+!paper/ebh.png
 
 # LaTeX and notebook build products
 paper/.ipynb_checkpoints/

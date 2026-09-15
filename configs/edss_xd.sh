@@ -14,6 +14,6 @@ exec "$PYTHON_BIN" -u src/xd_train.py \
   --ebh-alpha 0.05 --bet-eta 1.5 \
   --ebh-max-frac 0.25 --ebh-neg-frac 0.0 --ebh-normal-weight 0.50 \
   --ebh-warmup-epochs 1 \
-  --max-epoch 5 --test-every 0 \
+  --max-epoch 5 --test-every 10 \
   --early-stop-frac 0.20 --early-stop-patience-frac 0.40 \
   "$@"
