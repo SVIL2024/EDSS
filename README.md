@@ -20,8 +20,8 @@ evaluation paths produce ordinary snippet scores and expand each score over its
 The visual classification branch (C) is used for the UCF-Crime benchmark, and
 the vision-language alignment branch (A) is used for XD-Violence. The
 UCF-Crime recipe also supervises low-evidence context snippets in abnormal
-videos. The selector is e-BH-inspired; this implementation does not claim
-formal e-value calibration or false-discovery-rate control.
+videos. The selector uses an e-BH-inspired rank rule to adaptively select
+positive snippets from abnormal videos.
 
 ## Repository Layout
 
@@ -146,11 +146,9 @@ best test metric observed during training:
 
 The Baseline uses the same detector, features, and training protocol without
 EDSS; EDSS adds dense snippet supervision. Gains are computed from unrounded
-metrics. For reference, the published VadCLIP results are 88.02% AUC on
-UCF-Crime and 84.51% AP on XD-Violence; those values are published references,
-not a same-environment causal re-evaluation. See
-[`docs/RESULTS.md`](docs/RESULTS.md) and [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md)
-for the complete comparison boundary.
+metrics. Published VadCLIP results provide an additional reference point:
+88.02% AUC on UCF-Crime and 84.51% AP on XD-Violence. See
+[`docs/RESULTS.md`](docs/RESULTS.md) for additional experiment details.
 
 ## Reproducibility Notes
 
@@ -158,9 +156,8 @@ for the complete comparison boundary.
 - Each feature snippet represents 16 consecutive frames.
 - EDSS is applied during training; inference uses the ordinary VadCLIP score
   paths.
-- The public source release excludes raw videos, downloaded features, local CSV
-  paths, checkpoints, logs, experiment artifacts, private notes, and local
-  session material.
+- Downloaded datasets, feature arrays, checkpoints, logs, and generated CSV
+  manifests are prepared locally and are not part of this repository.
 - Run the regression suite from the repository root with:
 
   ```bash
