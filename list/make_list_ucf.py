@@ -41,11 +41,16 @@ def main() -> None:
     rows: list[tuple[str, str]] = []
     missing = 0
 
-    for raw_line in args.split.read_text(encoding="utf-8").splitlines():
+    videos = args.split.read_text(encoding="utf-8").splitlines()
+    # The supplied frame labels place abnormal videos before normal videos.
+    videos.sort(key=lambda video: "Normal" in video.split("/", maxsplit=1)[0])
+    for raw_line in videos:
         relative_video = raw_line.strip()
         if not relative_video:
             continue
         label = relative_video.split("/", maxsplit=1)[0]
+        if label in {"Training_Normal_Videos_Anomaly", "Testing_Normal_Videos_Anomaly"}:
+            label = "Normal"
         video_stem = (args.feature_root / Path(relative_video)).with_suffix("")
         for index in args.indices:
             feature_path = video_stem.parent / f"{video_stem.name}__{index}.npy"

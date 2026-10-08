@@ -99,6 +99,9 @@ parser.add_argument('--ebh-min-reject', default=1, type=int,
                     help='floor on rejections per anomalous bag (MIL needs >=1)')
 parser.add_argument('--ebh-normal-weight', default=1.0, type=float,
                     help='weight of the dense negative term on normal videos')
+parser.add_argument('--ebh-context-weight', default=-1.0, type=float,
+                    help='weight of context negatives in abnormal videos; '
+                         'negative reuses --ebh-normal-weight')
 parser.add_argument('--ebh-max-frac', default=0.2, type=float,
                     help='cap the rejection set at this fraction of the video '
                          '(guards the self-training feedback loop)')

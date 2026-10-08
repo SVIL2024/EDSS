@@ -18,6 +18,8 @@ def parse_args() -> argparse.Namespace:
                         help="directory containing the extracted .npy features")
     parser.add_argument("--output", type=Path, default=Path("list/xd_CLIP_rgb.csv"),
                         help="output CSV path")
+    parser.add_argument("--indices", nargs="+", type=int,
+                        help="feature suffixes; use 0 for test features (default: all)")
     return parser.parse_args()
 
 
@@ -33,8 +35,12 @@ def label_from_name(name: str) -> str:
 
 def main() -> None:
     args = parse_args()
-    rows = [(str(path), label_from_name(path.name))
-            for path in sorted(args.feature_root.glob("*.npy"))]
+    paths = sorted(args.feature_root.glob("*.npy"),
+                   key=lambda path: (label_from_name(path.name) == "A", path.name))
+    if args.indices is not None:
+        suffixes = tuple(f"__{index}.npy" for index in args.indices)
+        paths = [path for path in paths if path.name.endswith(suffixes)]
+    rows = [(str(path), label_from_name(path.name)) for path in paths]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)

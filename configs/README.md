@@ -9,9 +9,9 @@ bash configs/edss_xd.sh
 ```
 
 Both launchers use seed 234, write fresh logs, and pass any additional options
-to the corresponding Python entry point. Checkpoints and logs stay in ignored
-local directories.
+to the corresponding Python entry point. Both run for ten epochs. UCF-Crime
+evaluates every ten optimization steps; XD-Violence evaluates every fifty steps
+and at the end of each epoch.
 
-Superseded sweeps, controls, and one-off analysis programs are intentionally
-excluded from this public release. They are not required to train or evaluate
-EDSS and may depend on private artifacts or machine-specific data.
+The run-best checkpoints are saved to `model/runbest_ucf.pth` and
+`model/runbest_xd.pth`, and logs to `logs/`.

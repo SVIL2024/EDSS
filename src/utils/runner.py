@@ -9,6 +9,7 @@ Disk policy (the box is tight):
 """
 
 import fcntl
+from collections.abc import Mapping
 import hashlib
 import json
 import logging
@@ -20,12 +21,36 @@ from datetime import datetime, timezone
 import torch
 
 __all__ = [
-    "setup_logger", "trainable_state", "resolve_early_stopping",
+    "setup_logger", "trainable_state", "load_checkpoint", "resolve_early_stopping",
     "early_stop_step", "scheduled_loss_weight",
     "write_run_manifest", "BestTracker"
 ]
 
 _CLIP_PREFIX = "clipmodel."
+
+
+def load_checkpoint(model: torch.nn.Module, path: str,
+                    device: str | torch.device = "cpu") -> None:
+    """Load full weights or compact weights that omit the frozen CLIP backbone."""
+    state = torch.load(path, map_location=device, weights_only=True)
+    if not isinstance(state, Mapping) or not state or not all(
+            isinstance(key, str) and isinstance(value, torch.Tensor)
+            for key, value in state.items()):
+        raise ValueError("checkpoint must contain a nonempty tensor state dictionary")
+
+    expected = model.state_dict()
+    parameters = dict(model.named_parameters())
+    allowed_missing = {
+        name for name in expected if name.startswith(_CLIP_PREFIX)
+        and (name not in parameters or not parameters[name].requires_grad)
+    }
+    missing = sorted(set(expected) - set(state) - allowed_missing)
+    unexpected = sorted(set(state) - set(expected))
+    if missing or unexpected:
+        raise RuntimeError(
+            f"incompatible checkpoint: missing keys {missing}; "
+            f"unexpected keys {unexpected}")
+    model.load_state_dict(state, strict=False)
 
 
 class _FileLock:

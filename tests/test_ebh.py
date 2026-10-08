@@ -40,6 +40,25 @@ from utils.ebh import (  # noqa: E402
 NEG = -1e30
 
 
+@pytest.mark.parametrize("normal_weight,context_weight", [(0.0, 0.3), (0.7, 0.0)])
+def test_normal_and_context_weights_control_separate_targets(normal_weight, context_weight):
+    logits = torch.zeros(2, 6, requires_grad=True)
+    evidence = torch.tensor([[0., 0., 0., 0., 99., 99.],
+                             [10., 9., -4., -5., -6., 99.]])
+    loss = pseudo_label_loss(
+        logits, evidence, torch.tensor([4, 5]), torch.tensor([0., 1.]),
+        alpha=0.1, normal_weight=normal_weight, context_weight=context_weight,
+        max_frac=0.2, neg_frac=0.4)
+    loss.backward()
+    assert logits.grad[1, 0] < 0
+    torch.testing.assert_close(
+        logits.grad[0, :4], torch.full((4,), normal_weight * 0.5 / 4))
+    torch.testing.assert_close(
+        logits.grad[1, 3:5], torch.full((2,), context_weight * 0.5 / 2))
+    assert torch.count_nonzero(logits.grad[0, 4:]) == 0
+    assert logits.grad[1, 5] == 0
+
+
 def _log(e):
     return torch.log(torch.as_tensor(e, dtype=torch.float32))
 

@@ -17,7 +17,7 @@ from utils.runner import (
     BestTracker, early_stop_step, resolve_early_stopping, setup_logger,
     scheduled_loss_weight, write_run_manifest,
 )
-from utils.tools import get_batch_label, get_prompt_text
+from utils.tools import get_batch_label, get_batch_mask, get_prompt_text
 from xd_test import test
 
 
@@ -85,6 +85,9 @@ def train(model, train_loader, test_loader, args, label_map: dict, device):
 
     stop_frac = getattr(args, "early_stop_frac", 0.2) or 0.2
     patience_frac = getattr(args, "early_stop_patience_frac", 0.0) or 0.0
+    context_weight = args.ebh_context_weight
+    if context_weight < 0:
+        context_weight = args.ebh_normal_weight
     min_epochs, patience = resolve_early_stopping(
         args.max_epoch, stop_frac,
         getattr(args, "early_stop_patience", 0) or 0, patience_frac)
@@ -127,7 +130,9 @@ def train(model, train_loader, test_loader, args, label_map: dict, device):
             feat_lengths = feat_lengths.to(device)
             text_labels = get_batch_label(text_labels, prompt_text, label_map).to(device)
 
-            text_features, logits1, logits2 = model(visual_feat, None, prompt_text, feat_lengths)
+            padding_mask = get_batch_mask(feat_lengths, args.visual_length)
+            text_features, logits1, logits2 = model(
+                visual_feat, padding_mask, prompt_text, feat_lengths)
 
             loss1 = CLAS2(logits1, text_labels, feat_lengths, device)
             loss_total1 += loss1.item()
@@ -160,7 +165,8 @@ def train(model, train_loader, test_loader, args, label_map: dict, device):
                         args.ebh_min_reject, args.ebh_normal_weight, ebh_stats,
                         args.ebh_max_frac, args.ebh_neg_frac,
                         args.pseudo_selector, args.pseudo_fixed_k,
-                        args.pseudo_fixed_frac, args.pseudo_soft_temperature)
+                        args.pseudo_fixed_frac, args.pseudo_soft_temperature,
+                        context_weight=context_weight)
                     loss_totale += float(le)
                     loss = loss + args.ebh_weight1 * le
                 if args.ebh_weight2 > 0:
@@ -296,6 +302,9 @@ def setup_seed(seed):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 
 if __name__ == '__main__':

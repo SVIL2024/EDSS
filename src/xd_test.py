@@ -8,6 +8,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from model import CLIPVAD
 from utils.dataset import XDDataset
 from utils.tools import get_batch_mask, get_prompt_text
+from utils.runner import load_checkpoint
 from utils.xd_detectionMAP import getDetectionMAP as dmAP
 import xd_option
 
@@ -100,7 +101,6 @@ if __name__ == '__main__':
     gtlabels = np.load(args.gt_label_path, allow_pickle=True)
 
     model = CLIPVAD(args.classes_num, args.embed_dim, args.visual_length, args.visual_width, args.visual_head, args.visual_layers, args.attn_window, args.prompt_prefix, args.prompt_postfix, device)
-    model_param = torch.load(args.model_path)
-    model.load_state_dict(model_param)
+    load_checkpoint(model, args.model_path)
 
     test(model, test_loader, args.visual_length, prompt_text, gt, gtsegments, gtlabels, device)

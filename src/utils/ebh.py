@@ -278,7 +278,8 @@ def pseudo_label_loss(logits, log_e, lengths, labels, alpha: float = 0.5,
                       min_reject: int = 1, normal_weight: float = 1.0, stats=None,
                       max_frac: float = 1.0, neg_frac: float = 0.0,
                       selector: str = "ebh", fixed_k: int = 0,
-                      fixed_frac: float = 0.0, soft_temperature: float = 1.0):
+                      fixed_frac: float = 0.0, soft_temperature: float = 1.0,
+                      context_weight: float = None):
     """Dense snippet BCE with an interchangeable positive pseudo-label selector.
 
     ``selector`` is one of ``ebh`` (the proposed closed-form adaptive rule),
@@ -287,6 +288,9 @@ def pseudo_label_loss(logits, log_e, lengths, labels, alpha: float = 0.5,
     term; the shared dense-normal and anomaly-bottom negative terms remain).
     All variants keep the exact normal-video loss and optional confident-negative
     mining, making the selector itself the only experimental difference.
+
+    ``context_weight`` weights inferred negatives within abnormal videos;
+    when omitted it uses ``normal_weight``.
 
     * anomalous videos -- the e-BH rejection set is labelled 1.  ``k`` adapts to
       the evidence instead of being pinned at ``T/16 + 1``;
@@ -301,6 +305,8 @@ def pseudo_label_loss(logits, log_e, lengths, labels, alpha: float = 0.5,
     mask = length_mask(lengths, s.shape[1], s.device, s.dtype)
     y = labels.to(device=s.device, dtype=s.dtype).reshape(-1)
     is_anom = y > 0.5
+    if context_weight is None:
+        context_weight = normal_weight
 
     # start from a zero that is still attached to the graph, so callers can
     # always call .backward() even when no term is active this step
@@ -361,13 +367,13 @@ def pseudo_label_loss(logits, log_e, lengths, labels, alpha: float = 0.5,
         # confident normals *inside* anomalous videos -- the dominant AUC error
         # This remains active for ``normal_only``.  The control removes only
         # anomalous-bag pseudo-positives while preserving shared negative mining.
-        if neg_frac > 0 and normal_weight > 0:
+        if neg_frac > 0 and context_weight > 0:
             quiet = bottom_frac_mask(log_e[is_anom], la, neg_frac, exclude=sel)
             qf = quiet.to(s.dtype)
             negA = F.binary_cross_entropy_with_logits(
                 sa, torch.zeros_like(sa), reduction="none"
             )
-            loss = loss + normal_weight * (negA * qf).sum() / qf.sum().clamp_min(1.0)
+            loss = loss + context_weight * (negA * qf).sum() / qf.sum().clamp_min(1.0)
             if stats is not None:
                 stats["kneg"] = float(quiet.sum(1).float().mean())
 

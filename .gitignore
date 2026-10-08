@@ -70,6 +70,9 @@ tests/test_*.py
 !tests/test_mil_schedule.py
 !tests/test_null_alignment.py
 !tests/test_regularizers.py
+!tests/test_checkpoint_loading.py
+!tests/test_model_padding.py
+!tests/test_feature_lists.py
 
 # Editor/OS files and local secrets
 .DS_Store

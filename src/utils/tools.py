@@ -44,14 +44,9 @@ def get_prompt_text(label_map: dict):
     return prompt_text
 
 def get_batch_mask(lengths, maxlen):
-    batch_size = lengths.shape[0]
-    mask = torch.empty(batch_size, maxlen)
-    mask.fill_(0)
-    for i in range(batch_size):
-        if lengths[i] < maxlen:
-            mask[i, lengths[i]:maxlen] = 1
-
-    return mask.bool()
+    lengths = torch.as_tensor(lengths, dtype=torch.long)
+    positions = torch.arange(maxlen, device=lengths.device).unsqueeze(0)
+    return positions >= lengths.reshape(-1, 1)
 
 def random_extract(feat, t_max):
    r = np.random.randint(feat.shape[0] - t_max)
