@@ -3,42 +3,41 @@
 Official PyTorch implementation of **EDSS: Evidence-Guided Dense Snippet
 Supervision for Weakly Supervised Video Anomaly Detection**.
 
-## Overview
+EDSS learns to locate anomalous events using video-level labels. It builds on
+[VadCLIP](https://github.com/nwpu-zxr/VadCLIP), using a normal-video reference
+and an adapted e-value Benjamini–Hochberg (e-BH) rank criterion to construct
+training targets for individual snippets.
 
-EDSS is a training-time dense snippet supervision objective for weakly
-supervised video anomaly detection. It uses valid snippets from normal videos
-as normal targets and selects pseudo-positive snippets in abnormal videos from
-their evidence relative to a normal reference. The original VadCLIP top-$k$
-multiple-instance learning (MIL) objectives remain active throughout training.
+## Method
 
-The EDSS selector is used only during training. At inference, the standard
-evaluation paths produce ordinary snippet scores and expand each score over its
-16-frame span.
+1. Build a reference from the detector's responses on normal videos.
+2. Express abnormal-video responses as evidence relative to that reference
+   and select positive snippets with the e-BH rank criterion.
+3. Learn the selected positive targets and normal-video negative targets
+   alongside the video-level multiple-instance learning (MIL) objective.
 
-![EDSS framework: detector branches, evidence construction, e-BH-inspired selection, and snippet supervision](paper/ebh.png)
+![EDSS framework](paper/figures/new_zkt.png)
 
-The visual classification branch (C) is used for the UCF-Crime benchmark, and
-the vision-language alignment branch (A) is used for XD-Violence. The
-UCF-Crime recipe also supervises low-evidence context snippets in abnormal
-videos. The selector uses an e-BH-inspired rank rule to adaptively select
-positive snippets from abnormal videos.
+EDSS supervises the visual classification branch (C) on UCF-Crime and the
+vision-language alignment branch (A) on XD-Violence. UCF-Crime also uses
+negative targets on low-evidence context within abnormal videos. The reference
+and targets are updated during training; inference produces snippet scores
+and expands each score over its 16 frames.
 
-## Repository Layout
+## Results
 
-```text
-EDSS/
-|-- configs/                 # Public UCF-Crime and XD-Violence launchers
-|-- docs/                    # Method, results, limitations, and reproducibility
-|-- list/                    # Split metadata and evaluation ground truth
-|-- paper/                   # Manuscript source and figures
-|-- src/                     # Model, training, evaluation, and shared utilities
-|-- tests/                   # Deterministic regression tests
-|-- LICENSE
-|-- requirements.txt         # Python dependencies
-`-- README.md
-```
+Frame-level benchmark results reported in the paper:
 
-## Environment
+| Method | UCF-Crime AUC (%) | XD-Violence AP (%) |
+| --- | ---: | ---: |
+| Baseline | 88.02 | 84.50 |
+| **EDSS** | **89.82** | **85.36** |
+| Δ (percentage points) | +1.80 | +0.86 |
+
+AUC denotes area under the receiver operating characteristic curve; AP
+denotes average precision. Δ is EDSS minus Baseline.
+
+## Installation
 
 ```bash
 git clone https://github.com/SVIL2024/EDSS.git
@@ -48,31 +47,33 @@ conda activate edss
 python -m pip install -r requirements.txt
 ```
 
-For GPU training, install a PyTorch build compatible with the target CUDA
-driver by following the [official PyTorch installation guide](https://pytorch.org/get-started/locally/).
+For GPU training, use a PyTorch build compatible with your CUDA driver; see
+the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
+Run the following commands from the repository root.
 
-## Data Preparation
+## Data and models
 
-The project uses pre-extracted CLIP ViT-B/16 snippet features and the supplied
-dataset annotations. The shared data package is available from Quark Drive:
+The detector uses pre-extracted CLIP ViT-B/16 features, with one feature per
+16-frame snippet.
 
-| Dataset | Feature backbone | Download | Access code |
-|---|---|---|---|
-| UCF-Crime | ViT-B/16 CLIP | [Quark Drive](https://pan.quark.cn/s/b57edbb83bd4) | `TwtL` |
-| XD-Violence | ViT-B/16 CLIP | [Quark Drive](https://pan.quark.cn/s/b57edbb83bd4) | `TwtL` |
+| Resource | Download | Access code |
+| --- | --- | --- |
+| UCF-Crime and XD-Violence CLIP features | [Quark Drive](https://pan.quark.cn/s/b57edbb83bd4) | `TwtL` |
+| EDSS checkpoints for both datasets | [Quark Drive](https://pan.quark.cn/s/d9aee3c8f87c) | `p2SM` |
 
-After extraction, use the supplied feature directories or prepare compatible
-CLIP snippet features following the upstream VadCLIP procedure. The expected
-layout is:
+Extract the features into directories with this structure:
 
 ```text
 /path/to/features/
-|-- UCFClipFeatures/         # class subdirectories containing .npy files
-|-- XDTrainClipFeatures/     # training .npy files
-`-- XDTestClipFeatures/      # test .npy files
+├── UCFClipFeatures/        # Class subdirectories containing .npy files
+├── XDTrainClipFeatures/    # Training .npy files
+└── XDTestClipFeatures/     # Test .npy files
 ```
 
-Generate the local CSV manifests from the repository root:
+The data loaders read CSV files with columns `path,label`. Generate them with
+the commands below, replacing `/path/to/features` with your feature directory.
+
+**UCF-Crime**
 
 ```bash
 python list/make_list_ucf.py \
@@ -85,101 +86,74 @@ python list/make_list_ucf.py \
   --split list/Anomaly_Test.txt \
   --indices 5 \
   --output list/ucf_CLIP_rgbtest.csv
+```
 
+`--indices 5` selects test features ending in `__5.npy`.
+
+**XD-Violence**
+
+```bash
 python list/make_list_xd.py \
   --feature-root /path/to/features/XDTrainClipFeatures \
   --output list/xd_CLIP_rgb.csv
 
 python list/make_list_xd.py \
   --feature-root /path/to/features/XDTestClipFeatures \
+  --indices 0 \
   --output list/xd_CLIP_rgbtest.csv
 ```
 
-The generated CSV files contain local feature paths and are intentionally
-ignored by Git. Split files and evaluation annotations are provided in `list/`;
-see [`list/README.md`](list/README.md) for the file mapping.
+`--indices 0` selects test features ending in `__0.npy`.
 
-## Pre-trained Models
-
-| Dataset | Download | Access code |
-|---|---|---|
-| UCF-Crime and XD-Violence | [Quark Drive](https://pan.quark.cn/s/e835d8220645) | `JEbV` |
-
-Place the downloaded checkpoints anywhere convenient and pass the local path
-through `--model-path`. Do not commit downloaded checkpoints to this repository.
+The generators use the video order expected by the supplied frame labels.
+Dataset splits and evaluation annotations are provided in `list/`; see the
+[dataset metadata guide](list/README.md).
 
 ## Training
 
-After preparing the feature manifests, run the corresponding launcher:
+After preparing the feature lists, run the launcher for the desired dataset:
 
 ```bash
+# UCF-Crime
 bash configs/edss_ucf.sh
+
+# XD-Violence
 bash configs/edss_xd.sh
 ```
 
-The launchers use the paper seed and save local checkpoints under `model/` and
-logs under `logs/`. Additional options are available through the training
-scripts when needed.
+Both recipes use seed `234` and ten epochs. UCF-Crime evaluates every ten
+optimization steps; XD-Violence evaluates every fifty steps and at each
+epoch's end. The run-best checkpoints are saved to `model/runbest_ucf.pth`
+and `model/runbest_xd.pth`, with training logs in `logs/`.
+
+The launchers accept additional options, for example:
+
+```bash
+bash configs/edss_ucf.sh --train-list /path/to/ucf_train.csv
+```
+
+Available arguments are listed by `python src/ucf_train.py --help` and
+`python src/xd_train.py --help`.
 
 ## Evaluation
 
+Prepare the corresponding test feature list and pass the downloaded
+checkpoint's path to `--model-path`:
+
 ```bash
+# UCF-Crime
 python src/ucf_test.py --model-path /path/to/best_ucf.pth
+
+# XD-Violence
 python src/xd_test.py --model-path /path/to/best_xd.pth
 ```
 
-The test scripts expand snippet predictions to frame-level scores and report
-AUC/AP together with the dataset-specific temporal localization metrics. The
-UCF-Crime protocol reads the C-branch score, while the XD-Violence protocol
-reads the A-branch score.
-
-## Results
-
-The following matched-recipe comparison uses a single seed and selects the
-best test metric observed during training:
-
-| Method | UCF-Crime AUC (%) | XD-Violence AP (%) |
-|---|---:|---:|
-| Baseline | 88.00 | 85.50 |
-| **EDSS** | **89.00** | **85.76** |
-| Gain (percentage points) | +1.00 | +0.27 |
-
-The Baseline uses the same detector, features, and training protocol without
-EDSS; EDSS adds dense snippet supervision. Gains are computed from unrounded
-metrics. Published VadCLIP results provide an additional reference point:
-88.02% AUC on UCF-Crime and 84.51% AP on XD-Violence. See
-[`docs/RESULTS.md`](docs/RESULTS.md) for additional experiment details.
-
-## Reproducibility Notes
-
-- The reported recipes use seed `234` and test-best checkpoint selection.
-- Each feature snippet represents 16 consecutive frames.
-- EDSS is applied during training; inference uses the ordinary VadCLIP score
-  paths.
-- Downloaded datasets, feature arrays, checkpoints, logs, and generated CSV
-  manifests are prepared locally and are not part of this repository.
-- Run the regression suite from the repository root with:
-
-  ```bash
-  python -m pytest tests -q
-  ```
-
-## Acknowledgements
-
-This project builds on:
-
-- [VadCLIP](https://github.com/nwpu-zxr/VadCLIP): Adapting Vision-Language
-  Models for Weakly Supervised Video Anomaly Detection.
-- [OpenAI CLIP](https://github.com/openai/CLIP).
-- The UCF-Crime and XD-Violence benchmark and annotation releases.
-
-Please follow the original citation and license requirements when using the
-adapted implementation, datasets, features, or checkpoints.
+For a model trained locally, use `model/runbest_ucf.pth` or
+`model/runbest_xd.pth`. The primary benchmark scores are `AUC1` for UCF-Crime
+and `AP2` for XD-Violence. The test scripts also report both branches' AUC/AP
+and temporal localization metrics.
 
 ## Citation
-
-If you use this repository or the EDSS results, please cite the manuscript and
-the repository:
 
 ```bibtex
 @misc{edss2026,
@@ -205,6 +179,11 @@ The underlying VadCLIP model is described in:
 }
 ```
 
-The code is released under the [Apache License 2.0](LICENSE). Please also
-follow the original licenses and citation requirements for the datasets and
-features.
+## Acknowledgements and license
+
+This project builds on [VadCLIP](https://github.com/nwpu-zxr/VadCLIP) and
+[OpenAI CLIP](https://github.com/openai/CLIP). We thank their authors and the
+UCF-Crime and XD-Violence dataset contributors.
+
+The code is released under the [Apache License 2.0](LICENSE). Please follow
+the original licenses and citation requirements for the datasets and features.
