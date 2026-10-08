@@ -30,9 +30,9 @@ Frame-level benchmark results reported in the paper:
 
 | Method | UCF-Crime AUC (%) | XD-Violence AP (%) |
 | --- | ---: | ---: |
-| Baseline | 88.02 | 84.50 |
+| Baseline | 88.02 | 84.51 |
 | **EDSS** | **89.82** | **85.36** |
-| Δ (percentage points) | +1.80 | +0.86 |
+| Δ (percentage points) | +1.80 | +0.85 |
 
 AUC denotes area under the receiver operating characteristic curve; AP
 denotes average precision. Δ is EDSS minus Baseline.
