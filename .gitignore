@@ -33,9 +33,11 @@ configs/archive/
 scripts/archive/
 scripts/
 paper/references/
-paper/*.png
-!paper/主框图.png
-!paper/ebh.png
+# Keep the framework image; manuscript drafts remain local.
+paper/**
+!paper/figures/
+paper/figures/**
+!paper/figures/new_zkt.png
 
 # LaTeX and notebook build products
 paper/.ipynb_checkpoints/

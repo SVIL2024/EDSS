@@ -89,13 +89,9 @@ parser.add_argument('--ebh-weight1', default=0.0, type=float,
 parser.add_argument('--ebh-weight2', default=0.0, type=float,
                     help='weight of the e-BH dense snippet loss on the A-branch')
 parser.add_argument('--ebh-alpha', default=0.5, type=float,
-                    help='nominal e-BH level; deployed FDR control requires calibrated e-values')
+                    help='selection parameter for the e-BH rank criterion')
 parser.add_argument('--ebh-alpha2', default=-1.0, type=float,
-                    help='nominal e-BH level for the A branch; <0 reuses --ebh-alpha. '
-                         'The two branches need different levels because their score '
-                         'variance differs (C-branch binary logits are far tighter '
-                         'than A-branch multiclass margins), and alpha only bites '
-                         'relative to that spread')
+                    help='A-branch selection parameter; nonpositive values reuse --ebh-alpha')
 parser.add_argument('--ebh-min-reject', default=1, type=int,
                     help='floor on rejections per anomalous bag (MIL needs >=1)')
 parser.add_argument('--ebh-normal-weight', default=1.0, type=float,
@@ -107,9 +103,8 @@ parser.add_argument('--ebh-max-frac', default=0.2, type=float,
                     help='cap the rejection set at this fraction of the video '
                          '(guards the self-training feedback loop)')
 parser.add_argument('--ebh-neg-frac', default=0.0, type=float,
-                    help='fraction of the lowest-evidence snippets of an ANOMALOUS '
-                         'video to supervise as normal on the C branch; the '
-                         'evaluated A-branch call keeps this term disabled')
+                    help='fraction of lowest-evidence snippets in abnormal '
+                         'videos assigned negative context targets')
 parser.add_argument('--ebh-warmup-epochs', default=0, type=int)
 parser.add_argument('--pseudo-selector', default='ebh',
                     choices=['ebh', 'fixed_k', 'fixed_frac', 'original_topk',
@@ -122,9 +117,7 @@ parser.add_argument('--pseudo-fixed-frac', default=0.10, type=float,
 parser.add_argument('--pseudo-soft-temperature', default=1.0, type=float,
                     help='evidence temperature for the detached continuous soft baseline')
 parser.add_argument('--dump-run-best', default='', type=str,
-                    help='path to dump the run-best weights at the end of '
-                         'training (scratch, never touches the tracked best '
-                         'checkpoint); used for checkpoint-level ablations')
+                    help='path for saving this run\'s best checkpoint')
 
 # -------------------------------------------------- auxiliary temporal priors
 parser.add_argument('--smooth-weight', default=0.0, type=float)

@@ -1,27 +1,16 @@
-"""e-BH-inspired adaptive snippet selection for weakly-supervised VAD.
+"""Evidence-guided adaptive snippet selection for weakly supervised VAD.
 
-VadCLIP supervises a *fixed* ``k = T/16 + 1`` snippets per video. That constant
-encodes an approximately 6.25% selection budget without observing the event's
-true duration. When an event is shorter than the budget, normal snippets can
-receive upward pressure.
+For each abnormal video, sort normal-reference evidence in descending order:
 
-The e-Benjamini-Hochberg procedure (Wang & Ramdas, *False discovery rate
-control with e-values*, JRSS-B 2022) reads the number of rejections off the
-evidence instead:
+    k* = max {k : e_(k) >= n / (alpha * k)}.
 
-    sort descending  e_(1) >= ... >= e_(T)
-    k* = max { k : e_(k) >= T / (alpha * k) }
-    reject the k* largest
+The rank criterion follows Wang and Ramdas, "False discovery rate control
+with e-values", JRSS-B (2022). The training selector applies a minimum count
+and a selected-fraction cap, then assigns positive snippet targets. Normal
+videos supply negative targets; low-evidence context can supply additional
+negative targets inside abnormal videos.
 
-For valid e-values, the mathematical e-BH procedure controls FDR at level
-``alpha`` under arbitrary dependence.  The learned scores and estimated null
-used here have not satisfied that calibration empirically, so this module uses
-e-BH as an adaptive evidence-budget rule and does **not** claim deployed FDR
-control.  See ``docs/LIMITATIONS.md``.
-
-The e-values come from :mod:`utils.betting`, so the optional bag process and the
-snippet selector share one estimated normal reference. That shared reference
-is not empirically calibrated for normal snippets inside anomalous videos.
+Selection uses detached log-evidence and valid sequence lengths.
 """
 
 import math
@@ -160,10 +149,9 @@ def bottom_frac_mask(log_e: torch.Tensor, lengths: torch.Tensor, frac: float,
                      exclude: torch.Tensor = None) -> torch.Tensor:
     """``[B, T]`` mask of the ``frac`` lowest-evidence valid snippets per video.
 
-    Used to mine *confident normals inside anomalous videos*: snippets whose
-    e-value sits far below the null are normal even though their bag is
-    labelled anomalous.  ``exclude`` (typically the e-BH rejection set) is
-    pushed to the top of the ordering so the two sets can never overlap.
+    Lowest-evidence snippets receive negative context targets inside abnormal
+    videos. ``exclude`` (typically the positive set) is pushed to the top of
+    the ordering so the two sets cannot overlap.
     """
     le = _to_bt(log_e).detach().float()
     B, T = le.shape
@@ -399,32 +387,12 @@ def ebh_pseudo_loss(logits, log_e, lengths, labels, alpha: float = 0.5,
 
 def null_alignment_loss(scores, log_e, lengths, mu: float, sigma: float,
                         sel: torch.Tensor = None):
-    """Pull the non-selected bulk of a video toward the normal-video null.
+    """Align unselected margins with a normal-video reference.
 
-    Motivation (``docs/LIMITATIONS.md``): the selector's ideal FDR contract
-    fails because the *true* null -- normal snippets inside anomalous videos --
-    sits **+2.00 sigma** above the assumed null (snippets of fully-normal
-    videos).  Weakly-supervised MIL lifts whole anomalous videos, so the
-    e-values of genuinely normal snippets are inflated ~7.6x and e-BH
-    over-rejects by construction.
-
-    This loss enforces the null contract *during training*: the snippets e-BH
-    does **not** select must behave like the normal regime -- their
-    standardised scores ``u = (s - mu)/sigma`` under the EMA normal-video null
-    should be standard normal.  Selection and null enforcement are computed
-    from the same e-values, so the two co-calibrate: select the true anomalies,
-    and everything left over must look null.
-
-    ``mu`` / ``sigma`` are the **detached** EMA null tracked from normal videos
-    (see :class:`utils.betting.BettingAggregator`), so no gradient flows to the
-    null estimate; only ``scores`` gets gradient.  ``log_e`` is detached
-    inside (it only chooses the null set), and ``sel`` (the e-BH rejection set)
-    excludes selected snippets from the null population.
-
-    The loss is
-    ``E[ (u - 0)^2 ] / 2 + (Var[u] - 1)^2 / 2``
-    -- a location term matching the null mean, and a scale term matching the
-    null variance -- evaluated only over the null population.
+    Valid snippets outside ``sel`` contribute a squared standardized-mean
+    term and a squared deviation of standardized variance from one.
+    ``log_e`` is detached and filters masked positions; ``sel`` excludes
+    the positive snippets.
     """
     s = _to_bt(scores).float()
     mask = length_mask(lengths, s.shape[1], s.device, s.dtype)

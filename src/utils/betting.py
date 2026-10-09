@@ -1,50 +1,19 @@
-"""Testing-by-betting evidence aggregation for weakly-supervised MIL.
+"""Normal-reference evidence and optional betting aggregation for MIL.
 
-Why
----
-Multiple-instance learning in video anomaly detection is, literally, a test of
-the global null hypothesis
+The C branch uses binary logits; the A branch uses anomaly log-odds. Valid
+normal-video snippets supply a reference mean and standard deviation:
 
-    H0 : *every* snippet of this video is normal.
+    u_t = (r_t - mu) / sigma
+    log_e_t = eta * u_t - eta**2 / 2.
 
-The community aggregates snippet scores with a hard ``top-k`` mean
-(VadCLIP uses ``k = T/16 + 1``).  That estimator is (i) non-smooth, (ii) blind
-to *how* surprising a snippet is relative to the normal regime, and (iii)
-pinned to an approximately 6.25% selection budget regardless of the event's
-unknown duration. Selecting beyond a short event can push normal snippets in
-an anomalous video upward.
+EDSS uses this log-evidence to construct detached snippet targets. The
+module also provides an optional bag-level betting loss:
 
-Game-theoretic statistics (Ville 1939; Shafer & Vovk, *Game-Theoretic
-Foundations for Probability and Finance*; Grunwald/de Heide/Koolen, *Safe
-Testing*; Ramdas et al., *e-values and e-processes*) answers exactly this
-question with a **wealth process**.  A sceptic starts with capital 1 and
-repeatedly bets a fraction ``lam`` of it against H0 at fair odds:
+    logK = sum_t log(1 + lam * (exp(log_e_t) - 1)).
 
-    u_t  = (s_t - mu) / sigma                   standardised surprise
-    e_t  = exp(eta * u_t - eta^2 / 2)           Chernoff / exponential-tilt e-value
-                                                (E_H0[e_t] = 1 exactly for u ~ N(0,1))
-    K_t  = K_{t-1} * (1 + lam * (e_t - 1))      Kelly bet, K_0 = 1
-    logK = sum_t log(1 + lam * (e_t - 1))
-
-``(mu, sigma)`` describe the *normal regime* and are EMA-tracked online from
-the normal videos that weak supervision hands us for free.  Under the idealised
-H0 in which this standardisation really produces the assumed null, capital is a
-non-negative martingale and Ville's inequality applies.  The deployed learned
-scores do not satisfy that calibration: normal snippets inside anomalous videos
-are distribution-shifted.  The project therefore uses this construction as a
-training-time evidence score and makes no anytime-valid or deployed-FDR claim.
-See ``docs/LIMITATIONS.md``.
-
-What it buys us
----------------
-* ``e_t`` is unbounded above, so one strongly surprising snippet already
-  multiplies the capital -- no built-in duration prior, short anomalies survive.
-* If the optional bag loss is enabled, every snippet moves the capital; the
-  registered winning recipes disable that bag loss and use detached evidence
-  only for pseudo-label selection.
-* ``log(1 + lam(e-1)) >= log(1 - lam)``: bounded below, smooth, stable.
-* ``eta`` and ``lam`` can be learned when the optional differentiable bag loss
-  is enabled. They are not learned by the detached hard selector alone.
+The public EDSS launchers disable that optional bag loss. Batch statistics
+are used when normal videos are available; stored reference buffers are
+used for batches without normal videos.
 """
 
 import math
@@ -236,7 +205,7 @@ class BettingAggregator(nn.Module):
         return expo.clamp(-self.exp_clamp, self.exp_clamp)
 
     def e_values(self, scores, center=None, scale=None) -> torch.Tensor:
-        """Chernoff e-values ``exp(eta*u - eta^2/2)``; ``E_H0[e] = 1``."""
+        """Exponentiate the clamped normal-reference log-evidence."""
         return torch.exp(self.log_e_values(scores, center, scale))
 
     def log_wealth(self, scores, lengths, center=None, scale=None) -> torch.Tensor:
@@ -318,9 +287,8 @@ class DualBranchBetting(nn.Module):
         s1 = _to_bt(logits1)
         s2 = abnormal_margin(logits2)
 
-        # The null regime is read off *this batch's* normal videos, with
-        # gradient, so the statistic is affine-invariant.  This does not repair
-        # the cross-bag null shift documented in docs/LIMITATIONS.md.
+        # Estimate the reference from valid normal snippets in this batch.
+        # Gradients flow through these batch statistics.
         if bool(is_normal.any()):
             nl = lengths[is_normal]
             c1, sc1 = self.agg1.batch_null(s1[is_normal], nl)
@@ -345,10 +313,8 @@ class DualBranchBetting(nn.Module):
     def log_evidence(self, logits1, logits2, text_labels, lengths):
         """Per-snippet log e-values for both branches, plus the binary label.
 
-        Shares the batch-null standardisation with :meth:`forward`, so the
-        bag-level sceptic and the snippet-level selector are constructed against
-        the same estimated normal regime.  Sharing a reference does not imply
-        empirical calibration; see ``docs/LIMITATIONS.md``.
+        Uses the same batch reference as :meth:`forward`, with the EMA
+        estimate as a fallback when the batch has no normal videos.
         """
         is_normal = text_labels[:, 0] > 0.5
         y = (1.0 - text_labels[:, 0]).detach()

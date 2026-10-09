@@ -1,53 +1,58 @@
 # EDSS method
 
-EDSS is a training-time auxiliary objective for the two snippet-scoring
-branches already present in VadCLIP. It does not replace the original
-video-level top-$k$ MIL losses.
+EDSS adds individual snippet targets to VadCLIP's video-level MIL objective.
+It supervises the visual classification branch (C) on UCF-Crime and the
+vision-language alignment branch (A) on XD-Violence.
 
-For a branch score $s_{vt}$, the normal reference is estimated from valid
-snippets in the normal videos of the current batch. With center $\mu$ and
-scale $\sigma$, the standardized score is
+The C-branch anomaly margin $r^C_{vt}$ is its binary logit. For alignment
+logits $z^A$ with the normal class at index zero, the A-branch margin is
 
-\[
-u_{vt}=\frac{s_{vt}-\mu}{\sigma},\qquad
+$$
+r^A_{vt}=\operatorname{logsumexp}(z^A_{vt,1:})-z^A_{vt,0}.
+$$
+
+For either branch, valid snippets from normal videos in the current batch
+provide a reference mean $\mu$ and standard deviation $\sigma$. The
+standardized margin and log-evidence are
+
+$$
+u_{vt}=\frac{r_{vt}-\mu}{\sigma},\qquad
 \log e_{vt}=\eta u_{vt}-\frac{\eta^2}{2}.
-\]
+$$
 
 The implementation keeps these values in log space. For each abnormal video,
 it sorts valid snippets by `log e` and applies the e-BH-inspired condition
 
-\[
+$$
 \log e_{(k)}\ \geq\ \log\!\left(\frac{n}{\alpha k}\right),
-\]
+$$
 
 where $n$ is that video's valid snippet count. The largest passing rank is
-selected, subject to the training selector's minimum-rejection and maximum
-fraction safeguards. Selected abnormal snippets receive a positive BCE target.
+selected, with a minimum of one snippet and a maximum selected fraction.
+Selected snippets receive a positive binary cross-entropy target.
 
-Every valid snippet in a known-normal video receives an exact negative target.
-The UCF recipe can additionally supervise a fraction of the lowest-evidence
-snippets in abnormal videos as confident negatives. The selector is detached,
-so gradients flow through the score logits but not through the discrete target
-construction.
+Every valid snippet in a labeled normal video receives a negative target.
+The UCF-Crime recipe also assigns negative context targets to a fraction of
+the lowest-evidence snippets outside the positive set in abnormal videos.
+The selector is detached; gradients flow through the margins used by the
+loss, while target construction uses detached predictions.
 
 The total loss is the original VadCLIP MIL and prompt-separation loss plus the
 weighted EDSS terms:
 
-\[
+$$
 \mathcal L=\mathcal L_{\mathrm{MIL}}+\mathcal L_{\mathrm{prompt}}
  +\lambda_s(\mathcal L_P+\lambda_N\mathcal L_N+\lambda_B\mathcal L_B).
-\]
+$$
 
-The classification branch uses its binary logit for UCF-Crime. The alignment
-branch uses the numerically stable anomaly margin
+Here $\mathcal L_P$, $\mathcal L_N$, and $\mathcal L_B$ supervise positive
+snippets, normal-video snippets, and context snippets, respectively. The
+dataset settings are specified in `configs/edss_ucf.sh` and
+`configs/edss_xd.sh`.
 
-\[
-r^{A}_{vt}=\operatorname{logsumexp}(z^{A}_{vt,1:})-z^{A}_{vt,0},
-\]
-
-which is monotone with the evaluation score $1-p(\mathrm{normal})$ and is used
-for XD-Violence. At test time the standard evaluation scripts use sigmoid or
-softmax probabilities and repeat each snippet score over 16 frames.
+At test time, the C-branch score is $\operatorname{sigmoid}(r^C)$ and the
+A-branch score is $1-p(\mathrm{normal})=\operatorname{sigmoid}(r^A)$.
+Each snippet score is repeated over its 16 frames.
 
 ## Selectors
 

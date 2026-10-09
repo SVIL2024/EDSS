@@ -1,20 +1,9 @@
-"""TDD suite for null-alignment: pull the non-selected bulk of a video toward
-the normal-video null.
+"""Check the optional normal-reference alignment loss.
 
-Motivation (docs/LIMITATIONS.md): the selector's ideal FDR contract
-fails because the *true* null -- normal snippets inside anomalous videos -- sits
-**+2.00 sigma** above the assumed null (snippets of fully-normal videos).
-Weakly-supervised MIL lifts whole anomalous videos, so the e-values of genuinely
-normal snippets are inflated ~7.6x and e-BH over-rejects by construction.
+Covers selected-set exclusion, padding, reference detachment, gradients,
+and the standardized mean and variance terms.
 
-This loss enforces the null contract *during training*: the snippets e-BH does
-**not** select must behave like the normal regime -- their standardised scores
-``u = (s - mu)/sigma`` under the EMA normal-video null should be standard
-normal.  Selection and null enforcement are computed from the same e-values, so
-the two co-calibrate: select the true anomalies, and everything left over must
-look null.
-
-Run:  cd src && python -m pytest ../tests/test_null_alignment.py -q
+Run: python -m pytest tests/test_null_alignment.py -q
 """
 import os
 import sys

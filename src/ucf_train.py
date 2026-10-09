@@ -191,10 +191,8 @@ def train(model, normal_loader, anomaly_loader, testloader, args, label_map, dev
                     loss_totale += float(le2)
                     loss = loss + args.ebh_weight2 * le2
 
-                # null-alignment: pull the non-selected bulk of anomalous videos
-                # toward the EMA normal-video null (repairs the +2.00 sigma
-                # mis-specification documented in docs/LIMITATIONS.md).  The C-branch
-                # selection comes from e-BH on log_e1; mu/sigma are the EMA null.
+                # Optional alignment of unselected C-branch margins to the
+                # EMA normal-video reference.
                 if args.ebh_null_align > 0:
                     sel = ebh_reject(
                         log_e1[is_anom], feat_lengths[is_anom], args.ebh_alpha,

@@ -1,25 +1,36 @@
-# Reproducibility checklist
+# Running EDSS
 
-The public repository is a source release, not a dataset or checkpoint
-release. Reproduction requires the UCF-Crime and/or XD-Violence data, the
-released CLIP snippet features, and feature manifests whose paths are valid on
-the local machine.
+Run commands from the repository root. The [README](../README.md) provides
+installation commands, feature and checkpoint downloads, and feature-list
+generation commands for both datasets.
 
-1. Create an environment with a compatible PyTorch build and install
-   `requirements.txt`.
-2. Obtain the dataset and pre-extracted CLIP features under their applicable
-   licenses.
-3. Generate local CSV manifests with the scripts in `list/`, using an explicit
-   feature root. Keep the generated CSV files outside version control.
-4. Run `python -m pytest tests -q` from the repository root.
-5. Launch `bash configs/edss_ucf.sh` or `bash configs/edss_xd.sh`.
-6. Evaluate a selected checkpoint with `src/ucf_test.py` or `src/xd_test.py`.
+## Training
 
-The paper recipes use seed 234 and intentionally select the best test metric
-observed during training. For a fair comparison, keep the dataset split,
-feature extractor, snippet length, evaluation code, training budget, and
-checkpoint-selection rule fixed across methods.
+After installing the dependencies and creating the feature lists:
 
-Run outputs are local state and are written to ignored directories. The
-training code does not modify Git metadata, create commits, upload artifacts,
-or collect contributor information.
+```bash
+bash configs/edss_ucf.sh
+bash configs/edss_xd.sh
+```
+
+Both launchers use seed `234` and ten epochs. They save the run-best models
+to `model/runbest_ucf.pth` and `model/runbest_xd.pth`, with logs in `logs/`.
+Additional command-line arguments can be passed after the launcher name.
+
+## Evaluation
+
+Pass the downloaded or locally trained checkpoint's path:
+
+```bash
+python src/ucf_test.py --model-path /path/to/ucf_checkpoint.pth
+python src/xd_test.py --model-path /path/to/xd_checkpoint.pth
+```
+
+The primary benchmark scores are `AUC1` for UCF-Crime and `AP2` for
+XD-Violence.
+
+## Code checks
+
+```bash
+python -m pytest tests -q
+```

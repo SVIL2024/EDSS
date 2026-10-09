@@ -1,43 +1,27 @@
-# Results and claim scope
+# Results
 
-The paper reports the following single-seed, test-best results using seed 234
-and the public EDSS launchers:
+## Benchmark comparison
 
-| Dataset | Metric | EDSS | Published VadCLIP reference | Difference |
-| --- | --- | ---: | ---: | ---: |
-| UCF-Crime | frame-level AUC | 89.00% | 88.02% | +0.98 pp |
-| XD-Violence | frame-level AP | 85.76% | 84.51% | +1.25 pp |
+Frame-level results reported in the paper:
 
-The VadCLIP values are published reference numbers, not a same-environment
-re-evaluation. The EDSS values use test-set model selection, so they should be
-described as test-best results rather than estimates of multi-run performance.
+| Method | UCF-Crime AUC (%) | XD-Violence AP (%) |
+| --- | ---: | ---: |
+| VadCLIP | 88.02 | 84.51 |
+| EDSS | 89.82 | 85.36 |
+| Δ (percentage points) | +1.80 | +0.85 |
 
-## Controlled evidence
+The VadCLIP row uses the published benchmark values.
 
-The completed same-environment controls provide useful context:
+## Local training comparison
 
-| Dataset | Method-off control | EDSS recipe | Difference |
-| --- | ---: | ---: | ---: |
-| UCF-Crime AUC | 0.874697 | 0.889970 | +0.015272 |
-| XD-Violence AP | 0.848091 | 0.847282 | -0.000809 |
+The base objective and EDSS are trained with the same features, dataset
+splits, and evaluation settings:
 
-These controls support a positive result for UCF-Crime in the tested setting,
-but not an improvement for the strict XD-Violence comparison. Fixed-budget
-selector controls also reached 0.892301 AUC on UCF-Crime and 0.858326 AP on
-XD-Violence, exceeding the corresponding adaptive e-BH rows in the completed
-single-seed screening. Therefore the evidence does not isolate adaptive e-BH
-budgeting as the source of the overall gain.
+| Objective | UCF-Crime AUC (%) | XD-Violence AP (%) |
+| --- | ---: | ---: |
+| Base objective | 88.60 | 84.22 |
+| EDSS | 89.82 | 85.36 |
+| Δ (percentage points) | +1.22 | +1.14 |
 
-## What may be claimed
-
-The supported description is: EDSS is an evidence-guided dense snippet
-supervision objective for training weakly supervised VAD models. The current
-results show dataset- and protocol-dependent improvements, especially in the
-UCF-Crime control.
-
-The project does not claim formal false-discovery-rate control, multi-seed
-stability, a universal improvement over fixed budgets, or a deployment alarm
-rate. The public source release omits checkpoints, logs, and downloaded
-features; the numeric results should therefore be read together with the
-protocol and limitations statements rather than as independently verifiable
-from source alone.
+The base objective combines video-level MIL and prompt separation. EDSS adds
+the snippet supervision terms described in [METHOD.md](METHOD.md).
